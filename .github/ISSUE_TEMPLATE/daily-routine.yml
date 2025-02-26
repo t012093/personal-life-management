@@ -1,0 +1,173 @@
+name: Daily Routine Task
+description: Create a daily routine tracking task
+title: "[Daily] "
+labels: ["routine", "daily"]
+assignees: []
+body:
+  - type: input
+    id: date
+    attributes:
+      label: Target Date
+      description: The date for this routine task
+      placeholder: YYYY-MM-DD
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Routine Category
+      description: Select the category of this routine task
+      options:
+        - Morning Routine
+        - Exercise
+        - Meal Planning
+        - Evening Routine
+        - Focus Time
+    validations:
+      required: true
+
+  - type: input
+    id: wake_time
+    attributes:
+      label: 実際の起床時刻
+      description: 今日の起床時刻を24時間形式で入力してください
+      placeholder: "06:00"
+    validations:
+      required: true
+
+  - type: input
+    id: exercise_duration
+    attributes:
+      label: 運動時間（分）
+      description: 今日の運動時間を分単位で入力してください
+      placeholder: "30"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: task-list
+    attributes:
+      label: Task Checklist
+      description: Daily tasks to complete
+      options:
+        - label: 目標時刻に起床（06:00）
+        - label: モーニングストレッチ（15分）
+        - label: 健康的な朝食
+        - label: 今日のスケジュール確認
+        - label: 食事と水分摂取の記録
+        - label: 運動の実施（30分）
+        - label: 夕方の振り返り
+        - label: 明日の準備
+        - label: 目標時刻に就寝（22:00）
+
+  - type: dropdown
+    id: exercise_type
+    attributes:
+      label: 運動の種類
+      description: 実施した運動の種類を選択してください
+      options:
+        - ウォーキング
+        - ジョギング
+        - ストレッチ
+        - 筋力トレーニング
+        - ヨガ
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: schedule
+    attributes:
+      label: Today's Schedule
+      description: Outline your schedule for the day
+      placeholder: |
+        06:00 - 起床
+        06:15 - モーニングルーティン
+        07:00 - 運動
+        08:00 - 朝食と1日の計画
+        22:00 - 就寝
+    validations:
+      required: true
+
+  - type: textarea
+    id: meals
+    attributes:
+      label: 食事記録
+      description: 各食事の内容を記録してください
+      placeholder: |
+        朝食：
+        - メニュー：
+        - カロリー：
+        - 時間：
+        
+        昼食：
+        - メニュー：
+        - カロリー：
+        - 時間：
+        
+        夕食：
+        - メニュー：
+        - カロリー：
+        - 時間：
+        
+        間食：
+        - 内容：
+        - カロリー：
+    validations:
+      required: true
+
+  - type: dropdown
+    id: energy-level
+    attributes:
+      label: 活力レベル
+      description: 今日の体調はいかがですか？
+      options:
+        - とても元気
+        - 良好
+        - 普通
+        - やや疲れている
+        - かなり疲れている
+    validations:
+      required: true
+
+  - type: textarea
+    id: reflection
+    attributes:
+      label: 1日の振り返り
+      description: 今日の成果と改善点を記録してください
+      placeholder: |
+        ### 今日の達成点
+        - 
+        
+        ### 改善できる点
+        - 
+        
+        ### 明日への準備
+        - 
+        
+        ### 睡眠の質（1-5）
+        
+        ### 運動の満足度（1-5）
+        
+        ### 食事の満足度（1-5）
+
+  - type: input
+    id: bedtime
+    attributes:
+      label: 就寝予定時刻
+      description: 今日の就寝時刻を24時間形式で入力してください
+      placeholder: "22:00"
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: その他のメモ
+      description: 特記事項や気づきがあれば記入してください
+      placeholder: |
+        - 体調の変化
+        - 特別なイベント
+        - 気分の変化
+        - 改善のアイデア

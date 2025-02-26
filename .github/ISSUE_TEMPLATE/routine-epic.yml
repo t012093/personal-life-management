@@ -1,0 +1,74 @@
+name: Life Routine Epic
+description: Create a new life routine management epic
+title: "[Routine] "
+labels: ["epic", "routine"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Create a new life routine management epic to track your daily habits and goals.
+
+  - type: input
+    id: start-date
+    attributes:
+      label: Start Date
+      description: When do you want to start this routine?
+      placeholder: YYYY-MM-DD
+    validations:
+      required: true
+
+  - type: input
+    id: duration
+    attributes:
+      label: Duration
+      description: How long do you want to track this routine?
+      placeholder: e.g., 30 days, 3 months
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: routine-items
+    attributes:
+      label: Routine Items
+      description: Select the habits you want to track
+      options:
+        - label: Morning routine (6:00 AM wake up)
+        - label: Regular exercise (30 min daily)
+        - label: Healthy meals tracking
+        - label: Sleep schedule (10:00 PM bedtime)
+        - label: Daily meditation
+        - label: Reading time
+        - label: Work focus periods
+        
+  - type: textarea
+    id: goals
+    attributes:
+      label: Goals
+      description: What specific goals do you want to achieve?
+      placeholder: |
+        Example:
+        1. Establish consistent wake-up time
+        2. Build exercise habit
+        3. Improve nutrition
+    validations:
+      required: true
+
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Success Metrics
+      description: How will you measure success?
+      placeholder: |
+        Example:
+        - Wake up at 6:00 AM for 25 out of 30 days
+        - Exercise 30 minutes daily for 5 days per week
+        - Log all meals in tracking app
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      description: Any other information or context
+      placeholder: Add any additional notes or context here

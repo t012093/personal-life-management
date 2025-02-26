@@ -1,0 +1,109 @@
+name: Habit Metrics Collection
+on:
+  schedule:
+    - cron: '0 21 * * 0'  # 毎週日曜日の21:00 UTC (月曜6:00 JST)
+  workflow_dispatch:
+
+jobs:
+  analyze-habits:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Generate Weekly Report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 先週の日付範囲を計算
+          LAST_SUNDAY=$(date -d "last Sunday" '+%Y-%m-%d')
+          WEEK_START=$(date -d "$LAST_SUNDAY -6 days" '+%Y-%m-%d')
+          WEEK_END=$LAST_SUNDAY
+          
+          echo "集計期間: $WEEK_START から $WEEK_END"
+          
+          # 週間データの集計
+          TASKS=$(gh issue list --label routine,daily --search "created:$WEEK_START..$WEEK_END" --json number,title,body,comments,state -q '.[]')
+          
+          if [ -z "$TASKS" ]; then
+            echo "対象期間のタスクが見つかりません"
+            exit 0
+          fi
+          
+          # メトリクス集計
+          TOTAL_TASKS=$(echo "$TASKS" | jq '. | length')
+          COMPLETED_TASKS=$(echo "$TASKS" | jq '[.[] | select(.state=="closed")] | length')
+          
+          # 起床時間の分析
+          WAKEUP_TIMES=$(echo "$TASKS" | jq -r '.[] | 
+            .comments[] | 
+            select(contains("実際の起床時刻")) | 
+            capture("実際の起床時刻：(?<time>[0-9]{1,2}:[0-9]{2})").time' | 
+            sort)
+          
+          # 運動時間の集計
+          EXERCISE_MINUTES=$(echo "$TASKS" | jq -r '.[] | 
+            .comments[] | 
+            select(contains("運動時間")) | 
+            capture("時間：(?<time>[0-9]+)分").time' | 
+            awk '{sum += $1} END {print sum}')
+          
+          # 達成率の計算
+          COMPLETION_RATE=$((COMPLETED_TASKS * 100 / TOTAL_TASKS))
+          
+          # 週次レポートの生成
+          REPORT="## 📊 週次習慣トラッキングレポート\n"
+          REPORT+="**期間:** $WEEK_START ～ $WEEK_END\n\n"
+          
+          REPORT+="### 📈 全体の達成状況\n"
+          REPORT+="- 総タスク数: $TOTAL_TASKS\n"
+          REPORT+="- 完了タスク: $COMPLETED_TASKS\n"
+          REPORT+="- 達成率: ${COMPLETION_RATE}%\n\n"
+          
+          REPORT+="### ⏰ 起床時間の分析\n"
+          if [ ! -z "$WAKEUP_TIMES" ]; then
+            EARLIEST=$(echo "$WAKEUP_TIMES" | head -n1)
+            LATEST=$(echo "$WAKEUP_TIMES" | tail -n1)
+            REPORT+="- 最早: $EARLIEST\n"
+            REPORT+="- 最遅: $LATEST\n"
+          else
+            REPORT+="- データなし\n"
+          fi
+          REPORT+="\n"
+          
+          REPORT+="### 💪 運動習慣\n"
+          if [ ! -z "$EXERCISE_MINUTES" ]; then
+            REPORT+="- 週間合計運動時間: ${EXERCISE_MINUTES}分\n"
+            REPORT+="- 1日平均: $((EXERCISE_MINUTES / 7))分\n"
+          else
+            REPORT+="- データなし\n"
+          fi
+          REPORT+="\n"
+          
+          # 改善提案の生成
+          REPORT+="### 💡 改善のヒント\n"
+          if [ "$COMPLETION_RATE" -lt 50 ]; then
+            REPORT+="- タスクの達成率が低めです。より小さな目標から始めることを検討しましょう。\n"
+          elif [ "$COMPLETION_RATE" -gt 80 ]; then
+            REPORT+="- 素晴らしい達成率です！より高い目標にチャレンジしてみましょう。\n"
+          fi
+          
+          if [ ! -z "$WAKEUP_TIMES" ]; then
+            if [[ "$LATEST" > "07:00" ]]; then
+              REPORT+="- 起床時間にばらつきがあります。就寝時間を一定にすることで改善できるかもしれません。\n"
+            else
+              REPORT+="- 安定した起床時間を維持できています。この習慣を続けましょう。\n"
+            fi
+          fi
+          
+          if [ ! -z "$EXERCISE_MINUTES" ] && [ "$EXERCISE_MINUTES" -lt 150 ]; then
+            REPORT+="- WHO推奨の週150分の運動時間に達していません。少しずつ運動時間を増やしていきましょう。\n"
+          fi
+          
+          # Epic課題の検索と更新
+          EPICS=$(gh issue list --label epic --state open --json number,title -q '.[]')
+          
+          echo "$EPICS" | jq -c '.[]' | while read -r epic; do
+            EPIC_NUM=$(echo "$epic" | jq -r '.number')
+            gh issue comment "$EPIC_NUM" --body "$REPORT"
+          done
