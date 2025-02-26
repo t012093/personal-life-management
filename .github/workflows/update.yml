@@ -1,0 +1,36 @@
+name: Daily Progress Report
+on:
+  schedule:
+    - cron: '0 22 * * *'  # UTC 22:00 (JST 07:00)
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Generate Daily Report
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TODAY=$(date '+%Y-%m-%d')
+          EPIC_ISSUES=$(gh issue list --label epic,routine --json number,title -q '.[]')
+          
+          for epic in $(echo "$EPIC_ISSUES" | jq -c '.'); do
+            EPIC_NUM=$(echo "$epic" | jq -r '.number')
+            EPIC_TITLE=$(echo "$epic" | jq -r '.title')
+            
+            # Get subtasks progress
+            SUBTASKS=$(gh issue list --search "[#$EPIC_NUM]" --json title,state,labels -q '.[]')
+            TOTAL=$(echo "$SUBTASKS" | jq '. | length')
+            COMPLETED=$(echo "$SUBTASKS" | jq '[select(.state == "closed")] | length')
+            IN_PROGRESS=$(echo "$SUBTASKS" | jq '[select(.labels[].name == "in_progress")] | length')
+            PROGRESS=$((COMPLETED * 100 / TOTAL))
+            
+            # Create report message
+            report_message="📊 Daily Progress Report - ${TODAY}\n\nProgress Summary:\n- Total Tasks: ${TOTAL}\n- Completed: ${COMPLETED}\n- In Progress: ${IN_PROGRESS}\n- Progress Rate: ${PROGRESS}%\n\nActive Tasks:\n$(echo "$SUBTASKS" | jq -r 'select(.state == "open") | "- " + .title')\n\nCompleted Today:\n$(echo "$SUBTASKS" | jq -r 'select(.state == "closed") | "- " + .title')\n\nKeep moving forward! 💪"
+            
+            # Post report
+            gh issue comment "$EPIC_NUM" --body "$report_message"
+          done
