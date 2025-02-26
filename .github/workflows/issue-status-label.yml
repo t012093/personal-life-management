@@ -1,0 +1,79 @@
+name: Label issues
+on:
+  issues:
+    types:
+      - reopened
+      - opened
+      - closed
+      - assigned
+env:
+  PROJECT_NAME: "生活習慣管理2025"
+jobs:
+  issue_labels:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Add backlog label
+        if: github.event.action == 'opened'
+        uses: andymckay/labeler@1.0.2
+        with:
+          add-labels: "backlog"
+          remove-labels: "in_progress, done"
+          repo-token: ${{ secrets.PAT_TOKEN }}
+          ignore-if-assigned: true
+
+      - name: Add in_progress label
+        if: github.event.action == 'assigned' || github.event.action == 'reopened'
+        uses: andymckay/labeler@1.0.2
+        with:
+          add-labels: "in_progress"
+          remove-labels: "backlog, done"
+          repo-token: ${{ secrets.PAT_TOKEN }}
+          ignore-if-assigned: true
+
+      - name: Add done label
+        if: github.event.action == 'closed'
+        uses: andymckay/labeler@1.0.2
+        with:
+          add-labels: "done"
+          remove-labels: "in_progress, backlog"
+          repo-token: ${{ secrets.PAT_TOKEN }}
+          ignore-if-assigned: true
+
+  assign_issue_to_project:
+    name: Assign issues to project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign issues to project
+        if: github.event.action == 'opened'
+        uses: technote-space/create-project-card-action@v1
+        with:
+          PROJECT: ${{env.PROJECT_NAME}}
+          COLUMN: Backlog
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+  move_assigned_card:
+    runs-on: ubuntu-latest
+    name: Move assigned card
+    steps:
+      - uses: alex-page/github-project-automation-plus@v0.3.0
+        if: github.event.action == 'assigned'
+        with:
+          project: ${{env.PROJECT_NAME}}
+          column: In Progress
+          repo-token: ${{ secrets.PAT_TOKEN }}
+
+      - uses: alex-page/github-project-automation-plus@v0.3.0
+        if: github.event.action == 'reopened'
+        with:
+          project: ${{env.PROJECT_NAME}}
+          column: In Progress
+          repo-token: ${{ secrets.PAT_TOKEN }}
+
+      - uses: alex-page/github-project-automation-plus@v0.3.0
+        if: github.event.action == 'closed'
+        with:
+          project: ${{env.PROJECT_NAME}}
+          column: Done
+          repo-token: ${{ secrets.PAT_TOKEN }}
