@@ -1,103 +1,120 @@
-name: Update Task Status
+name: Update Issue Status
 on:
-  project_card:
-    types: [moved]
+  issues:
+    types:
+      - reopened
+      - opened
+      - closed
+      - assigned
 
 jobs:
-  update-status:
+  update_labels:
     runs-on: ubuntu-latest
     permissions:
       issues: write
       contents: read
     steps:
-      - name: Get column info
-        id: get-column
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          COLUMN_ID="${{ github.event.project_card.column_id }}"
-          COLUMN_NAME=$(gh api graphql -f query='
-            query($column_id: ID!) {
-              node(id: $column_id) {
-                ... on ProjectColumn {
-                  name
+      - name: Add labels based on issue status
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const event = context.payload.action;
+            const issue = context.payload.issue;
+            
+            async function updateLabels(addLabel, removeLabels) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: [addLabel]
+              });
+              
+              for (const label of removeLabels) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    name: label
+                  });
+                } catch (e) {
+                  // ラベルが存在しない場合は無視
+                  if (e.status !== 404) throw e;
                 }
               }
             }
-            ' -f column_id=$COLUMN_ID --jq '.data.node.name')
-          echo "column_name=${COLUMN_NAME}" >> $GITHUB_OUTPUT
+            
+            switch (event) {
+              case 'opened':
+                await updateLabels('backlog', ['in_progress', 'done']);
+                break;
+              case 'assigned':
+              case 'reopened':
+                await updateLabels('in_progress', ['backlog', 'done']);
+                break;
+              case 'closed':
+                await updateLabels('done', ['in_progress', 'backlog']);
+                break;
+            }
 
-      - name: Update task status and labels
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COLUMN_NAME: ${{ steps.get-column.outputs.column_name }}
-          ISSUE_URL: ${{ github.event.project_card.content_url }}
-        run: |
-          # ステータス更新メッセージのテンプレート
-          IN_PROGRESS_MSG="🌅 タスク開始\n\n### 本日の目標\n- [ ] 朝6時起床\n- [ ] モーニングストレッチ（15分）\n- [ ] 健康的な朝食\n- [ ] 運動（30分）\n- [ ] 食事記録\n\n### メモ\n\n### 状態更新\n- 開始時刻: $(date '+%Y-%m-%d %H:%M:%S')\n- 担当者: ${{ github.actor }}"
-          
-          REVIEW_MSG="🌙 1日の振り返り\n\n### チェックポイント\n1. 目標時刻の起床\n   - 実際の起床時刻：\n   - 感想：\n\n2. モーニングストレッチ\n   - 実施内容：\n   - 効果：\n\n3. 食事管理\n   - 朝食：\n   - 昼食：\n   - 夕食：\n\n4. 運動達成度\n   - 運動内容：\n   - 時間：\n\n### 明日への改善点\n\n### 状態更新\n- 記録時刻: $(date '+%Y-%m-%d %H:%M:%S')\n- 記録者: ${{ github.actor }}"
-          
-          DONE_MSG="✨ 本日の達成報告\n\n### 達成状況\n1. 朝のルーティン\n   - 起床時刻：\n   - ストレッチ：\n   - 朝食：\n\n2. 運動記録\n   - 内容：\n   - 時間：\n   - 感想：\n\n3. 食事記録\n   - 朝食：\n   - 昼食：\n   - 夕食：\n   - カロリー目標：\n\n### ハイライト\n\n### 状態更新\n- 完了時刻: $(date '+%Y-%m-%d %H:%M:%S')\n- 記録者: ${{ github.actor }}\n\n明日も頑張りましょう！💪"
-          
-          # 状態とラベルの更新
-          if [ "$COLUMN_NAME" = "In Progress" ]; then
-            gh issue comment "$ISSUE_URL" --body "$IN_PROGRESS_MSG"
-            gh issue edit "$ISSUE_URL" --add-label "in_progress" --remove-label "review,completed"
-          elif [ "$COLUMN_NAME" = "Review" ]; then
-            gh issue comment "$ISSUE_URL" --body "$REVIEW_MSG"
-            gh issue edit "$ISSUE_URL" --add-label "review" --remove-label "in_progress,completed"
-          elif [ "$COLUMN_NAME" = "Done" ]; then
-            gh issue comment "$ISSUE_URL" --body "$DONE_MSG"
-            gh issue edit "$ISSUE_URL" --add-label "completed" --remove-label "in_progress,review"
-          fi
-
-  notify-parent:
-    needs: update-status
+  update_project:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
       contents: read
+      issues: write
+      repository-projects: write
     steps:
-      - name: Get column info
-        id: get-column
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          COLUMN_ID="${{ github.event.project_card.column_id }}"
-          COLUMN_NAME=$(gh api graphql -f query='
-            query($column_id: ID!) {
-              node(id: $column_id) {
-                ... on ProjectColumn {
-                  name
+      - name: Move issue in project board
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const event = context.payload.action;
+            const issueNumber = context.payload.issue.number;
+            
+            // プロジェクトとカラムのIDを設定
+            // NOTE: これらのIDは実際のプロジェクトボードに合わせて更新する必要があります
+            const PROJECT_ID = 'PVT_kwHOBciMQs4AzKBN'; // Personal Life Management プロジェクト
+            const COLUMNS = {
+              BACKLOG: 'Backlog',
+              IN_PROGRESS: 'In Progress',
+              DONE: 'Done'
+            };
+            
+            let targetColumn;
+            switch (event) {
+              case 'opened':
+                targetColumn = COLUMNS.BACKLOG;
+                break;
+              case 'assigned':
+              case 'reopened':
+                targetColumn = COLUMNS.IN_PROGRESS;
+                break;
+              case 'closed':
+                targetColumn = COLUMNS.DONE;
+                break;
+              default:
+                return;
+            }
+            
+            // GraphQLを使用してプロジェクトのカードを更新
+            const query = `
+              mutation {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: "${PROJECT_ID}"
+                  itemId: "${issueNumber}"
+                  fieldId: "Status"
+                  value: "${targetColumn}"
+                }) {
+                  projectV2Item {
+                    id
+                  }
                 }
               }
+            `;
+            
+            try {
+              await github.graphql(query);
+              console.log(`Issue #${issueNumber} moved to ${targetColumn}`);
+            } catch (error) {
+              console.error(`Failed to move issue: ${error}`);
             }
-            ' -f column_id=$COLUMN_ID --jq '.data.node.name')
-          echo "column_name=${COLUMN_NAME}" >> $GITHUB_OUTPUT
-
-      - name: Update Parent Epic
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_URL: ${{ github.event.project_card.content_url }}
-          COLUMN_NAME: ${{ steps.get-column.outputs.column_name }}
-        run: |
-          # イシュータイトルから親タスク番号を抽出
-          ISSUE_TITLE=$(gh issue view "$ISSUE_URL" --json title -q .title)
-          if [[ $ISSUE_TITLE =~ \[#([0-9]+)\] ]]; then
-            PARENT_ID=${BASH_REMATCH[1]}
-            
-            # 親タスクの更新メッセージを作成
-            UPDATE_MSG="📋 サブタスク進捗報告\n\n### 更新内容\n- タスク：$ISSUE_TITLE\n- 新しい状態：$COLUMN_NAME\n\n### 状態詳細\n- 更新日時：$(date '+%Y-%m-%d %H:%M:%S')\n- 更新者：${{ github.actor }}\n\n### タスク概要\n$(gh issue view "$ISSUE_URL" --json body -q .body | head -n 3)"
-            
-            # 親タスクにコメントを追加
-            gh issue comment "$PARENT_ID" --body "$UPDATE_MSG"
-            
-            # 進捗状況の計算と更新
-            TOTAL_SUBTASKS=$(gh issue list --search "[#$PARENT_ID]" --json number -q '. | length')
-            COMPLETED_SUBTASKS=$(gh issue list --search "[#$PARENT_ID] is:closed" --json number -q '. | length')
-            PROGRESS=$((COMPLETED_SUBTASKS * 100 / TOTAL_SUBTASKS))
-            
-            PROGRESS_MSG="### 現在の進捗状況\n- 全体タスク数：$TOTAL_SUBTASKS\n- 完了タスク数：$COMPLETED_SUBTASKS\n- 進捗率：${PROGRESS}%"
-            gh issue comment "$PARENT_ID" --body "$PROGRESS_MSG"
-          fi
