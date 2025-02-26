@@ -1,0 +1,45 @@
+name: Update Task Status
+on:
+  project_card:
+    types: [moved]
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Update task status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COLUMN_NAME: ${{ github.event.project_card.column_name }}
+          ISSUE_URL: ${{ github.event.project_card.content_url }}
+        run: |
+          in_progress_message="📝 Task Status: In Progress\n\nToday's Goals:\n- [ ] Morning routine (6:00 AM)\n- [ ] Exercise (30 min)\n- [ ] Meal tracking\n\nStatus Update:\n- Start time: $(date '+%Y-%m-%d %H:%M:%S')\n- Updated by: ${{ github.actor }}"
+          
+          review_message="🔍 Task Status: Under Review\n\nReview Points:\n1. Did you achieve your morning goals?\n2. Did you complete your exercise?\n3. Did you track all meals?\n\nNotes:\n- Review time: $(date '+%Y-%m-%d %H:%M:%S')\n- Reviewer: ${{ github.actor }}"
+          
+          done_message="✅ Task Status: Completed\n\nAchievement Summary:\n- Morning routine: Done\n- Exercise: Completed\n- Meal tracking: Done\n\nStatus Update:\n- Completion time: $(date '+%Y-%m-%d %H:%M:%S')\n- Completed by: ${{ github.actor }}\n\nGreat work! Keep up the momentum! 🎉"
+          
+          case "$COLUMN_NAME" in
+            "In Progress")
+              echo "$in_progress_message" > message.txt
+              ;;
+            "Review")
+              echo "$review_message" > message.txt
+              ;;
+            "Done")
+              echo "$done_message" > message.txt
+              ;;
+          esac
+          
+          gh issue comment "$ISSUE_URL" --body-file message.txt

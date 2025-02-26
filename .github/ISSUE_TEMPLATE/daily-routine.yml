@@ -1,0 +1,97 @@
+name: Daily Routine Task
+description: Create a daily routine tracking task
+title: "[Daily] "
+labels: ["routine", "daily"]
+assignees: []
+body:
+  - type: input
+    id: date
+    attributes:
+      label: Target Date
+      description: The date for this routine task
+      placeholder: YYYY-MM-DD
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Routine Category
+      description: Select the category of this routine task
+      options:
+        - Morning Routine
+        - Exercise
+        - Meal Planning
+        - Evening Routine
+        - Focus Time
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: task-list
+    attributes:
+      label: Task Checklist
+      description: Daily tasks to complete
+      options:
+        - label: Wake up at target time
+        - label: Morning stretching/exercise
+        - label: Healthy breakfast
+        - label: Plan today's schedule
+        - label: Track meals and water intake
+        - label: Complete daily exercise
+        - label: Evening reflection
+        - label: Prepare for tomorrow
+        - label: Go to bed at target time
+
+  - type: textarea
+    id: schedule
+    attributes:
+      label: Today's Schedule
+      description: Outline your schedule for the day
+      placeholder: |
+        06:00 - Wake up
+        06:15 - Morning routine
+        07:00 - Exercise
+        08:00 - Breakfast & planning
+        22:00 - Bedtime
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes & Reminders
+      description: Any special notes or reminders for today
+      placeholder: |
+        - Remember to take vitamins
+        - Prepare workout clothes
+        - Set up water bottle
+
+  - type: dropdown
+    id: energy-level
+    attributes:
+      label: Current Energy Level
+      description: How are you feeling today?
+      options:
+        - Very Energetic
+        - Good
+        - Moderate
+        - Tired
+        - Very Tired
+    validations:
+      required: true
+
+  - type: textarea
+    id: reflection
+    attributes:
+      label: Evening Reflection Space
+      description: Use this space for end-of-day reflection
+      placeholder: |
+        ### What went well today?
+        - 
+        
+        ### What could be improved?
+        - 
+        
+        ### Tomorrow's preparation
+        -
